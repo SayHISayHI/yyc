@@ -181,7 +181,7 @@ export const calculateOptimalContainers = (
   const MAX_RECURSION_DEPTH = 15; // Max depth for the solver
 
   // 3. Helper for brute force (optimized with backtracking)
-  let bestRemainderSolution: { cost: number; counts: number[] } | null = null;
+  const solverState: { best: { cost: number; counts: number[] } | null } = { best: null };
   
   const solveSmall = (
     targetVol: number, 
@@ -193,7 +193,7 @@ export const calculateOptimalContainers = (
     startIndex: number
   ) => {
     // Pruning: Cost exceeded best found so far
-    if (bestRemainderSolution && currentCost >= bestRemainderSolution.cost) return;
+    if (solverState.best && currentCost >= solverState.best.cost) return;
     
     // Pruning: Depth exceeded
     const totalCount = currentCounts.reduce((a, b) => a + b, 0);
@@ -201,8 +201,8 @@ export const calculateOptimalContainers = (
 
     // Check if valid solution
     if (currentVol >= targetVol && currentWeight >= targetWeight) {
-      if (!bestRemainderSolution || currentCost < bestRemainderSolution.cost) {
-        bestRemainderSolution = { cost: currentCost, counts: [...currentCounts] };
+      if (!solverState.best || currentCost < solverState.best.cost) {
+        solverState.best = { cost: currentCost, counts: [...currentCounts] };
       }
       return;
     }
@@ -251,11 +251,11 @@ export const calculateOptimalContainers = (
     const remWeight = Math.max(0, requiredWeight - bulkCount * bulkData.maxWeight);
 
     // Reset solver for this bulk scenario
-    bestRemainderSolution = null;
+    solverState.best = null;
     solveSmall(remVol, remWeight, new Array(containerTypes.length).fill(0), 0, 0, 0, 0);
 
-    if (bestRemainderSolution) {
-      const solution = bestRemainderSolution;
+    const currentBest: { cost: number; counts: number[] } | null = solverState.best;
+    if (currentBest !== null) {
       // Construct full solution
       const combination: Record<string, number> = {};
       
@@ -269,7 +269,8 @@ export const calculateOptimalContainers = (
       let remainderVol = 0;
       let remainderWt = 0;
 
-      solution.counts.forEach((count, idx) => {
+      const counts = (currentBest as { cost: number; counts: number[] }).counts;
+      counts.forEach((count, idx) => {
         if (count > 0) {
           const type = containerTypes[idx];
           combination[type] = (combination[type] || 0) + count;
