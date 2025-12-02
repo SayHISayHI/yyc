@@ -136,4 +136,24 @@ describe('Container Optimization Tests', () => {
     // Should be fast (< 100ms)
     expect(end - start).toBeLessThan(100);
   });
+
+  it('handles high volume low weight scenario (User Report)', () => {
+    // Scenario from user screenshot:
+    // Weight: 100 kg
+    // Volume: 10000 CBM
+    // Expected: Should use many containers (approx 10000 / 76 = 132 containers of 40' HC)
+    // NOT just 1 container.
+    
+    const result = calculateOptimalContainers(10000, 100, defaultSeaRates);
+    
+    expect(result.valid).toBe(true);
+    expect(result.totalVolume).toBeGreaterThanOrEqual(10000);
+    
+    const totalContainers = Object.values(result.containers).reduce((a, b) => a + b, 0);
+    expect(totalContainers).toBeGreaterThan(100);
+    
+    // Cost should be roughly 132 * 330 = 43560
+    // Definitely not 330 (1 container)
+    expect(result.totalCost).toBeGreaterThan(40000);
+  });
 });

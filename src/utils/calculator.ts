@@ -153,6 +153,8 @@ export const calculateOptimalContainers = (
   rates: SeaFreightRates,
   isReeferContainer: boolean = false
 ): ContainerCombination => {
+  // Optimized for large shipments and edge cases (High Volume/Low Weight or vice versa)
+  
   // 1. Filter and Sort container types
   // Sort by efficiency (Cost per CBM) to find good solutions early for pruning
   const containerTypes = Object.keys(rates.fcl)
@@ -175,10 +177,8 @@ export const calculateOptimalContainers = (
 
   // 2. Define constants for optimization
   // We use a "Bulk + Remainder" strategy.
-  // We fill the vast majority of the requirement with the most efficient container type,
-  // and only use the expensive backtracking solver for the last few containers.
   const BUFFER_SIZE = 5; // Number of large containers to leave for the solver
-  const MAX_RECURSION_DEPTH = 15; // Max depth for the solver (must be > BUFFER_SIZE * 2 roughly)
+  const MAX_RECURSION_DEPTH = 15; // Max depth for the solver
 
   // 3. Helper for brute force (optimized with backtracking)
   let bestRemainderSolution: { cost: number; counts: number[] } | null = null;
@@ -212,9 +212,6 @@ export const calculateOptimalContainers = (
       const type = containerTypes[i];
       const data = rates.fcl[type];
       
-      // Optimization: Don't add if it clearly overshoots too much? 
-      // (Skipped for simplicity, efficiency sort helps enough)
-
       currentCounts[i]++;
       solveSmall(
         targetVol, targetWeight, 
@@ -222,7 +219,7 @@ export const calculateOptimalContainers = (
         currentCost + data.cost, 
         currentVol + data.maxVolume, 
         currentWeight + data.maxWeight, 
-        i // Allow reusing the same container type
+        i 
       );
       currentCounts[i]--; // Backtrack
     }
@@ -238,13 +235,13 @@ export const calculateOptimalContainers = (
   let globalBest: ContainerCombination | null = null;
 
   // Try each container type as the "Bulk" carrier
-  // This ensures we handle cases where a specific container is best for the bulk
   for (let i = 0; i < containerTypes.length; i++) {
     const bulkType = containerTypes[i];
     const bulkData = rates.fcl[bulkType];
 
-    // Calculate how many bulk containers we can use safely
-    // Leave at least 'volBuffer' and 'weightBuffer' for the remainder solver
+    // Calculate how many bulk containers we can use safely.
+    // CRITICAL FIX: Use Math.max to ensure we fill the constraint that requires MORE containers.
+    // If Volume requires 100 containers but Weight requires 1, we must use ~100 containers.
     const bulkCount = Math.max(0, Math.max(
       Math.floor((requiredVolume - volBuffer) / bulkData.maxVolume),
       Math.floor((requiredWeight - weightBuffer) / bulkData.maxWeight)
@@ -300,7 +297,7 @@ export const calculateOptimalContainers = (
     }
   }
 
-  // Fallback if no solution found (shouldn't happen unless types empty)
+  // Fallback if no solution found
   if (!globalBest) {
      return {
       containers: {},
