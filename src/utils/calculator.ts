@@ -120,10 +120,7 @@ export const calculateOtherCharges = (
 export const calculateTotalCost = (
   details: ShipmentDetails,
   seaRates: SeaFreightRates,
-  airRates: AirFreightRates,
-  bankCharges: BankCharges,
-  otherCharges: OtherCharges,
-  exchangeRate: number // USD to Local
+  airRates: AirFreightRates
 ): CalculationResult => {
   let freightCostUSD = 0;
   
@@ -133,56 +130,12 @@ export const calculateTotalCost = (
     freightCostUSD = calculateAirFreight(details, airRates);
   }
 
-  // Bank and Other charges are usually in local currency or converted?
-  // The Excel shows "Bank Charges" and "Other Charges" in the same column as "Freight Cost".
-  // "Freight Cost" is in USD (implied by "Unit Freight (USD)").
-  // But the final "Cost (Local)" sums them up.
-  // Let's assume Bank/Other charges are calculated in Local Currency directly or converted.
-  // The rates in Excel (e.g., 26.99, 13.49) look like local currency (CNY?) or USD?
-  // Given "USD 100 = 85.66...", 1 USD ~ 0.85 EUR? Or 100 USD = 85.66 Local?
-  // If 100 USD = 85.66, then 1 USD = 0.8566.
-  // If the currency is CNY, 100 USD is usually 700+.
-  // Maybe it's EUR? "EUR 85.66".
-  // Let's assume the Bank/Other charges are defined in the TARGET currency (Local).
-  // And Freight is in USD, so we convert Freight to Local.
-
-  const freightCostLocal = freightCostUSD * exchangeRate;
-  
-  // Bank/Other charges calculation base:
-  // Usually calculated on the Invoice Value (Foreign Cost).
-  // Foreign Cost is in Foreign Currency (e.g. USD).
-  // So we convert Foreign Cost to Local first? Or calculate in USD and convert?
-  // Excel: "Foreign Cost (Local)" = 214169.47.
-  // "Foreign Cost (Foreign)" = 250000.
-  // Exchange Rate: 85.6677... (USD 100 = 85.66).
-  // 250000 * (85.66/100) = 214169.
-  // So the rate is Foreign -> Local.
-  
-  const foreignCostLocal = details.foreignCost * (exchangeRate / 100); // Assuming rate is per 100 units if it's like 85.66
-
-  // Actually, let's look at the rate input. "USD 100 = 85.66".
-  // So Rate = 0.8566.
-  // If input is 85.66, we divide by 100.
-  
-  // Bank charges often depend on the amount.
-  // Let's assume the rates (percentages) apply to the Local Value.
-  
-  const bankCost = calculateBankCharges(foreignCostLocal, bankCharges);
-  const otherCost = calculateOtherCharges(foreignCostLocal, otherCharges);
-
-  const totalCost = freightCostLocal + bankCost + otherCost + foreignCostLocal;
+  // Simplified: Just return freight cost in USD
+  const totalCost = freightCostUSD;
 
   return {
-    freightCost: freightCostLocal,
-    bankCharges: bankCost,
-    otherCharges: otherCost,
+    freightCost: freightCostUSD,
     totalCost,
-    unitCost: totalCost / details.quantity,
-    breakdown: {
-      freight: freightCostLocal,
-      bank: { total: bankCost }, // Simplified for now
-      other: { total: otherCost },
-    }
   };
 };
 
@@ -197,9 +150,13 @@ export interface ContainerCombination {
 export const calculateOptimalContainers = (
   requiredVolume: number,
   requiredWeight: number,
-  rates: SeaFreightRates
+  rates: SeaFreightRates,
+  isReeferContainer: boolean = false
 ): ContainerCombination => {
-  const containerTypes = Object.keys(rates.fcl);
+  // Filter container types based on reefer requirement
+  const containerTypes = Object.keys(rates.fcl).filter(
+    type => rates.fcl[type].isReefer === isReeferContainer
+  );
   let bestCombination: ContainerCombination | null = null;
 
   // Try all possible combinations with dynamic programming approach

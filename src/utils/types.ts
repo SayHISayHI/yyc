@@ -7,20 +7,16 @@ export interface ExchangeRate {
 }
 
 export interface ShipmentDetails {
-  tradeTerm: 'EXW' | 'FOB' | 'CIF';
-  currency: Currency;
-  foreignCost: number; // Total foreign cost
-  quantity: number;
-  cartonCount: number;
   grossWeight: number; // kg
   volume: number; // CBM
   isFCL: boolean; // Full Container Load
   containerType?: string; // e.g., "20' GP"
   transportMode: 'Sea' | 'Air';
+  isReeferContainer?: boolean; // 是否冻柜运输 (仅海运FCL)
 }
 
 export interface SeaFreightRates {
-  fcl: Record<string, { maxWeight: number; maxVolume: number; cost: number }>;
+  fcl: Record<string, { maxWeight: number; maxVolume: number; cost: number; isReefer: boolean }>;
   lcl: {
     m_mtq: number; // Cost per CBM
     w_tne: number; // Cost per Ton
@@ -65,15 +61,7 @@ export interface OtherCharges {
 
 export interface CalculationResult {
   freightCost: number;
-  bankCharges: number;
-  otherCharges: number;
   totalCost: number;
-  unitCost: number;
-  breakdown: {
-    freight: number;
-    bank: Record<string, number>;
-    other: Record<string, number>;
-  };
   containerCombination?: {
     containers: Record<string, number>;
     totalCost: number;

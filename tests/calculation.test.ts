@@ -1,20 +1,16 @@
 import { describe, it, expect } from 'vitest';
 import { calculateTotalCost, calculateChargeableWeight, calculateSeaFreight, calculateAirFreight } from '../src/utils/calculator';
-import { defaultSeaRates, defaultAirRates, defaultBankCharges, defaultOtherCharges } from '../src/utils/defaults';
+import { defaultSeaRates, defaultAirRates } from '../src/utils/defaults';
 import { ShipmentDetails } from '../src/utils/types';
 
 describe('Calculator Logic', () => {
   const baseDetails: ShipmentDetails = {
-    tradeTerm: 'EXW',
-    currency: 'USD',
-    foreignCost: 250000,
-    quantity: 5000,
-    cartonCount: 1000,
     grossWeight: 9200,
     volume: 20,
     isFCL: true,
     transportMode: 'Sea',
-    containerType: "20' GP"
+    containerType: "20' GP",
+    isReeferContainer: false
   };
 
   it('calculates chargeable weight for Air', () => {
@@ -49,26 +45,16 @@ describe('Calculator Logic', () => {
   });
 
   it('calculates Total Cost', () => {
-    // Using the example from the image roughly
-    // Foreign Cost: 250000 USD? Or Local?
-    // Image says "Foreign Cost (Foreign) 250000". "Foreign Cost (Local) 214169.47".
-    // So Exchange Rate is ~0.8566778778.
-    const exchangeRate = 85.66778778; 
+ 
     
     const result = calculateTotalCost(
       baseDetails,
       defaultSeaRates,
-      defaultAirRates,
-      defaultBankCharges,
-      defaultOtherCharges,
-      exchangeRate
+      defaultAirRates
     );
 
-    // Freight (Sea FCL 20'GP): 165 USD * 85.66... = ~14135 Local (direct multiplication)
-    // The formula is: freightCostUSD * exchangeRate
-    // Since exchangeRate = 85.66778778, and freight = 165, result = 14135
-    
-    expect(result.totalCost).toBeGreaterThan(200000);
-    expect(result.freightCost).toBeCloseTo(165 * exchangeRate, 1);
+    // Now totalCost is just freightCost in USD
+    expect(result.totalCost).toBe(165);
+    expect(result.freightCost).toBe(165);
   });
 });

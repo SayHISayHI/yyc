@@ -99,4 +99,19 @@ describe('Container Optimization Tests', () => {
     const result2 = calculateOptimalContainers(30, 20000, defaultSeaRates);
     expect(result2.totalCost).toBeLessThanOrEqual(330);
   });
+
+  it('optimizes for reefer containers when requested', () => {
+    // Volume: 20 CBM, Weight: 15000 kg
+    // Should use 1x 20' RF (27 CBM, 21000 kg, cost 183)
+    // If not reefer, would use 20' GP (cost 165)
+    const result = calculateOptimalContainers(20, 15000, defaultSeaRates, true);
+    
+    expect(result.valid).toBe(true);
+    expect(result.containers["20' RF"]).toBe(1);
+    expect(result.totalCost).toBe(183);
+    
+    // Ensure no non-reefer containers are used
+    expect(result.containers["20' GP"]).toBeUndefined();
+    expect(result.containers["40' GP"]).toBeUndefined();
+  });
 });

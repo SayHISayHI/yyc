@@ -4,19 +4,15 @@ import { calculateTotalCost, calculateOptimalContainers } from '../utils/calcula
 import type { ShipmentDetails } from '../utils/types';
 
 export default function Calculator() {
-  const { seaRates, airRates, bankCharges, otherCharges, exchangeRate } = useRates();
+  const { seaRates, airRates } = useRates();
   
   const [formData, setFormData] = useState<ShipmentDetails>({
-    tradeTerm: 'EXW',
-    currency: 'USD',
-    foreignCost: 0,
-    quantity: 0,
-    cartonCount: 0,
     grossWeight: 0,
     volume: 0,
     isFCL: true,
     transportMode: 'Sea',
     containerType: "20' GP",
+    isReeferContainer: false,
   });
 
   const [result, setResult] = useState<ReturnType<typeof calculateTotalCost> | null>(null);
@@ -26,10 +22,7 @@ export default function Calculator() {
     let calculationResult = calculateTotalCost(
       formData,
       seaRates,
-      airRates,
-      bankCharges,
-      otherCharges,
-      exchangeRate
+      airRates
     );
 
     // If optimization mode and FCL, calculate optimal containers
@@ -37,22 +30,18 @@ export default function Calculator() {
       const optimalContainers = calculateOptimalContainers(
         formData.volume,
         formData.grossWeight,
-        seaRates
+        seaRates,
+        formData.isReeferContainer || false
       );
 
       // Recalculate with optimal combination cost
       const freightCostUSD = optimalContainers.totalCost;
-      const freightCostLocal = freightCostUSD * exchangeRate;
-      const foreignCostLocal = formData.foreignCost * (exchangeRate / 100);
-      const bankCost = calculationResult.bankCharges; // reuse
-      const otherCost = calculationResult.otherCharges; // reuse
-      const totalCost = freightCostLocal + bankCost + otherCost + foreignCostLocal;
+      const totalCost = freightCostUSD;
 
       calculationResult = {
         ...calculationResult,
-        freightCost: freightCostLocal,
+        freightCost: freightCostUSD,
         totalCost,
-        unitCost: totalCost / formData.quantity,
         containerCombination: {
           containers: optimalContainers.containers,
           totalCost: optimalContainers.totalCost,
@@ -74,51 +63,6 @@ export default function Calculator() {
             <h3 className="text-xl font-semibold mb-4">货物信息</h3>
             
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">贸易条款</label>
-                <select
-                  value={formData.tradeTerm}
-                  onChange={(e) => setFormData({ ...formData, tradeTerm: e.target.value as 'EXW' | 'FOB' | 'CIF' })}
-                  className="w-full border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black"
-                >
-                  <option value="EXW">EXW</option>
-                  <option value="FOB">FOB</option>
-                  <option value="CIF">CIF</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1">外汇货值 (USD)</label>
-                <input
-                  type="number"
-                  value={formData.foreignCost || ''}
-                  onChange={(e) => setFormData({ ...formData, foreignCost: Number(e.target.value) })}
-                  className="w-full border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black"
-                  placeholder="250000"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">数量</label>
-                  <input
-                    type="number"
-                    value={formData.quantity || ''}
-                    onChange={(e) => setFormData({ ...formData, quantity: Number(e.target.value) })}
-                    className="w-full border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">箱数</label>
-                  <input
-                    type="number"
-                    value={formData.cartonCount || ''}
-                    onChange={(e) => setFormData({ ...formData, cartonCount: Number(e.target.value) })}
-                    className="w-full border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black"
-                  />
-                </div>
-              </div>
-
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-1">毛重 (kg)</label>
@@ -199,6 +143,18 @@ export default function Calculator() {
 
                   {formData.isFCL && (
                     <>
+                      <div className="mt-2">
+                        <label className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={formData.isReeferContainer || false}
+                            onChange={(e) => setFormData({ ...formData, isReeferContainer: e.target.checked })}
+                            className="mr-2"
+                          />
+                          <span>冻柜运输</span>
+                        </label>
+                      </div>
+
                       <div>
                         <label className="block text-sm font-medium mb-2">优化模式</label>
                         <div className="flex gap-4">
@@ -231,12 +187,12 @@ export default function Calculator() {
                             onChange={(e) => setFormData({ ...formData, containerType: e.target.value })}
                             className="w-full border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black"
                           >
-                            <option value="20' GP">20' GP</option>
-                            <option value="40' GP">40' GP</option>
-                            <option value="40' HC">40' HC</option>
-                            <option value="20' RF">20' RF</option>
-                            <option value="40' RF">40' RF</option>
-                            <option value="40' RH">40' RH</option>
+                            {Object.entries(seaRates.fcl)
+                              .filter(([, data]) => data.isReefer === (formData.isReeferContainer || false))
+                              .map(([type]) => (
+                                <option key={type} value={type}>{type}</option>
+                              ))
+                            }
                           </select>
                         </div>
                       )}
@@ -284,30 +240,11 @@ export default function Calculator() {
                     <span className="font-medium">运费</span>
                     <span className="font-mono">{result.freightCost.toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between py-2 border-b border-gray-300">
-                    <span className="font-medium">银行费用</span>
-                    <span className="font-mono">{result.bankCharges.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b border-gray-300">
-                    <span className="font-medium">其他费用</span>
-                    <span className="font-mono">{result.otherCharges.toFixed(2)}</span>
-                  </div>
                   <div className="flex justify-between py-3 border-t-2 border-black text-lg">
                     <span className="font-bold">总成本</span>
                     <span className="font-mono font-bold">{result.totalCost.toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between py-2 bg-white px-3">
-                    <span className="font-medium">单位成本</span>
-                    <span className="font-mono">{result.unitCost.toFixed(4)}</span>
-                  </div>
                 </div>
-              </div>
-
-              <div className="border border-gray-300 p-6">
-                <h3 className="text-lg font-semibold mb-3">汇率信息</h3>
-                <p className="text-sm text-gray-700">
-                  当前汇率: 1 USD = {(exchangeRate / 100).toFixed(4)} 本币
-                </p>
               </div>
             </>
           )}

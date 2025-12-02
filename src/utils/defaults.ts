@@ -2,12 +2,12 @@ import type { SeaFreightRates, AirFreightRates, BankCharges, OtherCharges } from
 
 export const defaultSeaRates: SeaFreightRates = {
   fcl: {
-    "20' GP": { maxWeight: 25000, maxVolume: 33, cost: 165 },
-    "40' GP": { maxWeight: 29000, maxVolume: 67, cost: 330 },
-    "40' HC": { maxWeight: 29000, maxVolume: 76, cost: 330 },
-    "20' RF": { maxWeight: 21000, maxVolume: 27, cost: 183 },
-    "40' RF": { maxWeight: 26000, maxVolume: 58, cost: 383 },
-    "40' RH": { maxWeight: 26000, maxVolume: 66, cost: 383 },
+    "20' GP": { maxWeight: 25000, maxVolume: 33, cost: 165, isReefer: false },
+    "40' GP": { maxWeight: 29000, maxVolume: 67, cost: 330, isReefer: false },
+    "40' HC": { maxWeight: 29000, maxVolume: 76, cost: 330, isReefer: false },
+    "20' RF": { maxWeight: 21000, maxVolume: 27, cost: 183, isReefer: true },
+    "40' RF": { maxWeight: 26000, maxVolume: 58, cost: 383, isReefer: true },
+    "40' RH": { maxWeight: 26000, maxVolume: 66, cost: 383, isReefer: true },
   },
   lcl: {
     m_mtq: 7.5,
