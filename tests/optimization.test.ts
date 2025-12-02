@@ -114,4 +114,26 @@ describe('Container Optimization Tests', () => {
     expect(result.containers["20' GP"]).toBeUndefined();
     expect(result.containers["40' GP"]).toBeUndefined();
   });
+
+  it('handles massive shipment efficiently', () => {
+    // 5000 CBM, 1,000,000 kg
+    // 40' HC is 76 CBM, 29000 kg.
+    // 5000 / 76 ~= 65.7 containers.
+    // 1,000,000 / 29000 ~= 34.5 containers.
+    // So volume is the constraint.
+    // Should use roughly 66 containers.
+    const start = performance.now();
+    const result = calculateOptimalContainers(5000, 1000000, defaultSeaRates);
+    const end = performance.now();
+    
+    expect(result.valid).toBe(true);
+    expect(result.totalVolume).toBeGreaterThanOrEqual(5000);
+    expect(result.totalWeight).toBeGreaterThanOrEqual(1000000);
+    
+    const totalContainers = Object.values(result.containers).reduce((a, b) => a + b, 0);
+    expect(totalContainers).toBeGreaterThan(60);
+    
+    // Should be fast (< 100ms)
+    expect(end - start).toBeLessThan(100);
+  });
 });
